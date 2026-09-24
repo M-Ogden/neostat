@@ -14,13 +14,18 @@ import (
 )
 
 const help = `Print the currently running version of Neo4j.
-	Syntax: neostat [-c|-h|-l] [-d <dir>]
+	Syntax: neostat [-c|-h|-l|-s] [-d <dir>]
 	options:
 	h        Print this Help.
 	c        Show the version of currently running Neo4j.
 	d <dir>  Base directory of Neo4j installs.
 	l        List installed versions of Neo4j.
+	s        Save the base directory (from -d) to ~/.neostat.
 	`
+
+// configFile is the name of the file in the user's home directory that stores
+// the saved base directory of Neo4j installs.
+const configFile = ".neostat"
 
 // versionRe pulls the version out of a "neo4j-enterprise-<version>" token,
 // whether it appears in a process command line or an install directory name.
@@ -35,7 +40,10 @@ func main() {
 
 	// baseDir may be overridden with -d <dir>; empty means use the default.
 	var baseDir string
+	var save, list, running bool
 
+	// Parse all arguments first so that flag order does not matter (e.g.
+	// "-l -d <dir>" behaves the same as "-d <dir> -l").
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
 		case "-h", "-help", "--help":
@@ -48,12 +56,12 @@ func main() {
 			}
 			baseDir = args[i+1]
 			i++
+		case "-s":
+			save = true
 		case "-l":
-			listInstalled(baseDir)
-			return
+			list = true
 		case "-c":
-			printRunningVersion()
-			return
+			running = true
 		default:
 			fmt.Fprintf(os.Stderr, "unknown option: %s\n\n", args[i])
 			fmt.Print(help)
@@ -61,8 +69,60 @@ func main() {
 		}
 	}
 
-	// Only -d was supplied (no action); list installed versions using it.
+	if save {
+		saveBaseDir(baseDir)
+	}
+
+	if running {
+		printRunningVersion()
+		return
+	}
+
+	// Default action (list) applies for -l, or when only -d/-s were supplied.
+	_ = list
 	listInstalled(baseDir)
+}
+
+// configPath returns the full path to the ~/.neostat config file.
+func configPath() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(home, configFile), nil
+}
+
+// saveBaseDir writes the given base directory to ~/.neostat. It requires a
+// non-empty directory (supplied via -d).
+func saveBaseDir(dir string) {
+	if strings.TrimSpace(dir) == "" {
+		fmt.Fprintln(os.Stderr, "-s requires a base directory; supply one with -d <dir>")
+		os.Exit(1)
+	}
+	path, err := configPath()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "cannot determine home directory: %v\n", err)
+		os.Exit(1)
+	}
+	if err := os.WriteFile(path, []byte(dir+"\n"), 0o644); err != nil {
+		fmt.Fprintf(os.Stderr, "cannot write %s: %v\n", path, err)
+		os.Exit(1)
+	}
+	fmt.Printf("Saved base directory to %s\n", path)
+}
+
+// readSavedBaseDir returns the base directory stored in ~/.neostat, or an
+// empty string if the file does not exist or cannot be read.
+func readSavedBaseDir() string {
+	path, err := configPath()
+	if err != nil {
+		return ""
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(data))
 }
 
 // printRunningVersion scans the process table for a running
@@ -76,7 +136,7 @@ func printRunningVersion() {
 
 	scanner := bufio.NewScanner(strings.NewReader(string(out)))
 	for scanner.Scan() {
-		line := scanner. Text()
+		line := scanner.Text()
 		if !strings.Contains(line, "neo4j-enterprise") {
 			continue
 		}
@@ -89,13 +149,18 @@ func printRunningVersion() {
 }
 
 // listInstalled prints the versions installed under the given base directory.
-// If baseDir is empty, it defaults to $HOME/neo4j/installs/instance1.
+// If baseDir is empty, it falls back to the directory saved in ~/.neostat, and
+// then to the default $HOME/neo4j/installs/instance1.
 func listInstalled(baseDir string) {
+	// Resolution order: explicit -d value > saved ~/.neostat value > default.
 	dir := baseDir
+	if dir == "" {
+		dir = readSavedBaseDir()
+	}
 	if dir == "" {
 		home, err := os.UserHomeDir()
 		if err != nil {
-			fmt.Fprintf(os. Stderr, "cannot determine home directory: %v\n", err)
+			fmt.Fprintf(os.Stderr, "cannot determine home directory: %v\n", err)
 			os.Exit(1)
 		}
 		dir = filepath.Join(home, "neo4j", "installs", "instance1")
@@ -117,4 +182,3 @@ func listInstalled(baseDir string) {
 		fmt.Println(v)
 	}
 }
-

@@ -9,6 +9,7 @@ It is a Go port of the original `neos.sh` script.
 - Detect and print the version of the Neo4j Enterprise instance currently running.
 - List all installed Neo4j Enterprise versions under a base directory.
 - Configurable install base directory.
+- Save the base directory to `~/.neostat` so `-l` reuses it automatically.
 
 ## Requirements
 
@@ -54,7 +55,7 @@ mv neostat /usr/local/bin/
 ## Usage
 
 ```
-neostat [-c|-h|-l] [-d <dir>]
+neostat [-c|-h|-l|-s] [-d <dir>]
 ```
 
 ### Options
@@ -65,9 +66,27 @@ neostat [-c|-h|-l] [-d <dir>]
 | `-c`       | Show the version of the currently running Neo4j.     |
 | `-d <dir>` | Base directory of Neo4j installs.                    |
 | `-l`       | List installed versions of Neo4j.                    |
+| `-s`       | Save the base directory (from `-d`) to `~/.neostat`. |
 
 Running `neostat` with no arguments prints the currently running version
 (equivalent to `-c`).
+
+### Saving the base directory
+
+Use `-s` together with `-d <dir>` to persist the base directory to a file named
+`.neostat` in your home directory:
+
+```sh
+neostat -s -d /opt/neo4j/installs
+```
+
+Afterwards, running `neostat -l` without `-d` reads the saved directory from
+`~/.neostat`. When resolving the base directory for `-l`, the following order is
+used:
+
+1. An explicit `-d <dir>` argument.
+2. The directory saved in `~/.neostat`.
+3. The default `$HOME/neo4j/installs/instance1`.
 
 ### Examples
 
@@ -90,6 +109,12 @@ List installed versions from a custom base directory:
 
 ```sh
 neostat -l -d /opt/neo4j/installs
+```
+
+Save a base directory and list versions in one command:
+
+```sh
+neostat -s -d /opt/neo4j/installs -l
 ```
 
 ## How it works
