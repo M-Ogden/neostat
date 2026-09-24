@@ -1,4 +1,5 @@
-# Compiled binaries
-neostat-linux
-neostat-mac
-neostat.exe
+# Compiled binaries (root build output only; prebuilt binaries under assets/ are tracked)
+/neostat-linux
+/neostat-mac
+/neostat.exe
+/neostat

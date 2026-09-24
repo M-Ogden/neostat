@@ -18,6 +18,26 @@ It is a Go port of the original `neos.sh` script.
 
 ## Installation
 
+### Prebuilt binaries
+
+Prebuilt binaries are available in the [`assets/`](assets) directory:
+
+| Platform | Binary                  |
+| -------- | ----------------------- |
+| Linux    | `assets/neostat-linux`  |
+| macOS    | `assets/neostat-mac`    |
+| Windows  | `assets/neostat.exe`    |
+
+Download the appropriate binary, make it executable (Linux/macOS), and move it
+somewhere on your `PATH`:
+
+```sh
+chmod +x assets/neostat-mac
+mv assets/neostat-mac /usr/local/bin/neostat
+```
+
+### Build from source
+
 Build from source with the Go toolchain:
 
 ```sh
